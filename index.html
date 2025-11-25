@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudinary Gallery Pro</title>
+    
+    <!-- 1. ប្រើ Tailwind CSS សម្រាប់រចនា -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. ប្រើ Font Khmer (Hanuman) -->
+    <link href="https://fonts.googleapis.com/css2?family=Hanuman:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <!-- 3. ប្រើ Icon (FontAwesome) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { font-family: 'Hanuman', sans-serif; background-color: #f3f4f6; }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <span class="font-bold text-xl text-blue-900">Cloud Gallery</span>
+                </div>
+                <div class="text-sm text-gray-500">
+                    <i class="fa-solid fa-circle text-green-500 text-[10px] mr-1"></i> Online
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto px-4 py-8">
+        
+        <!-- Section 1: Upload Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-10 border border-gray-100 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+            
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="fa-regular fa-image text-blue-500"></i> បញ្ចូលរូបភាពថ្មី
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                
+                <!-- Left: Upload Input Area -->
+                <div class="space-y-4">
+                    <label for="fileInput" class="group flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all duration-300 relative overflow-hidden">
+                        
+                        <!-- Default View -->
+                        <div id="uploadPrompt" class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-gray-300 group-hover:text-blue-500 mb-3 transition-colors"></i>
+                            <p class="mb-2 text-sm text-gray-500"><span class="font-semibold text-blue-600">ចុចទីនេះ</span> ដើម្បីរើសរូបភាព</p>
+                            <p class="text-xs text-gray-400">PNG, JPG or GIF</p>
+                        </div>
+
+                        <!-- Image Preview (Hidden initially) -->
+                        <img id="imagePreview" class="hidden absolute w-full h-full object-cover rounded-xl opacity-90" />
+                        
+                        <input id="fileInput" type="file" class="hidden" accept="image/*" />
+                    </label>
+
+                    <!-- Upload Button -->
+                    <button id="uploadBtn" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform active:scale-95">
+                        <span id="btnText">ចាប់ផ្តើម Upload</span>
+                        <div id="btnLoader" class="loader hidden"></div>
+                    </button>
+                </div>
+
+                <!-- Right: Info or Instruction -->
+                <div class="hidden md:block bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-3">របៀបប្រើប្រាស់:</h3>
+                    <ul class="space-y-3 text-sm text-gray-600">
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                            <span>ជ្រើសរើសរូបភាពដែលអ្នកចង់រក្សាទុក</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                            <span>ចុចប៊ូតុង Upload ដើម្បីបញ្ជូនទៅ Cloud</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
+                            <span>រូបភាពនឹងបង្ហាញនៅខាងក្រោមដោយស្វ័យប្រវត្តិ</span>
+                        </li>
+                    </ul>
+                    <div class="mt-4 p-3 bg-blue-50 text-blue-700 text-xs rounded-lg border border-blue-100">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> រូបភាពរបស់អ្នកត្រូវបានរក្សាទុកដោយសុវត្ថិភាព
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Gallery -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">វិចិត្រសាលរូបភាព</h2>
+            <span class="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full" id="countBadge">0 រូប</span>
+        </div>
+
+        <div id="gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <!-- Skeleton Loading (បង្ហាញពេលកំពុងទាញទិន្នន័យ) -->
+            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
+            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
+            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
+            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
+        </div>
+
+        <!-- Empty State (បង្ហាញពេលអត់មានរូប) -->
+        <div id="emptyState" class="hidden text-center py-20">
+            <div class="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                <i class="fa-regular fa-folder-open text-3xl text-gray-400"></i>
+            </div>
+            <h3 class="text-gray-500 font-bold">មិនទាន់មានរូបភាពនៅឡើយ</h3>
+            <p class="text-gray-400 text-sm">សូមសាកល្បង Upload រូបភាពដំបូងរបស់អ្នក</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 text-gray-400 text-sm">
+        &copy; 2025 Cloud Gallery System
+    </footer>
+
+    <!-- Toast Notification (សារលោតនៅជ្រុង) -->
+    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <div class="bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-green-400"></i>
+            <span id="toastMsg">Operation Successful</span>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // ==========================================
+        //  កន្លែងបំពេញ KEY របស់អ្នក (សូមកែត្រង់នេះ)
+        // ==========================================
+        const CLOUDINARY_CLOUD_NAME = "dylbvcpoh"; 
+        const CLOUDINARY_UPLOAD_PRESET = "tseting000122"; 
+
+      const firebaseConfig = {
+  apiKey: "AIzaSyDe3ZzoBbQrn4C7PYxHp6J4skZG3auVZlc",
+  authDomain: "testuploadimage-a1ae4.firebaseapp.com",
+  projectId: "testuploadimage-a1ae4",
+  storageBucket: "testuploadimage-a1ae4.firebasestorage.app",
+  messagingSenderId: "16522506084",
+  appId: "1:16522506084:web:597d9c50eeb71606d45471",
+  measurementId: "G-G1XBTSCG48"
+};
+        // ==========================================
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const imagePreview = document.getElementById('imagePreview');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+        const gallery = document.getElementById('gallery');
+        const countBadge = document.getElementById('countBadge');
+        const emptyState = document.getElementById('emptyState');
+
+        // 1. Handle File Selection (បង្ហាញរូប Preview)
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    uploadPrompt.classList.add('opacity-0'); // Hide prompt text
+                    uploadBtn.disabled = false;
+                    uploadBtn.classList.remove('bg-gray-400');
+                    uploadBtn.classList.add('bg-blue-600');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 2. Handle Upload (ផ្ញើទៅ Cloudinary -> Firebase)
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Set Loading State
+            setLoading(true);
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+            try {
+                // A. Upload to Cloudinary
+                const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+                    method: "POST",
+                    body: formData
+                });
+                
+                const cloudData = await cloudRes.json();
+                
+                if (cloudData.error) throw new Error(cloudData.error.message);
+
+                // B. Save to Firebase
+                await addDoc(collection(db, "images"), {
+                    url: cloudData.secure_url,
+                    name: file.name,
+                    createdAt: serverTimestamp()
+                });
+
+                showToast("Upload ជោគជ័យ!", "success");
+                resetForm();
+
+            } catch (error) {
+                console.error(error);
+                showToast("បរាជ័យ: " + error.message, "error");
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // 3. Real-time Gallery Display
+        const q = query(collection(db, "images"), orderBy("createdAt", "desc"));
+        
+        onSnapshot(q, (snapshot) => {
+            gallery.innerHTML = ""; // Clear loader
+            countBadge.innerText = snapshot.docs.length + " រូប";
+
+            if (snapshot.empty) {
+                emptyState.classList.remove('hidden');
+                gallery.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                gallery.classList.remove('hidden');
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const card = document.createElement('div');
+                    card.className = "group relative aspect-square bg-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer";
+                    card.innerHTML = `
+                        <img src="${data.url}" class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" loading="lazy">
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <a href="${data.url}" target="_blank" class="bg-white text-gray-800 px-4 py-2 rounded-full text-xs font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all">
+                                <i class="fa-solid fa-expand"></i> មើលរូប
+                            </a>
+                        </div>
+                    `;
+                    gallery.appendChild(card);
+                });
+            }
+        });
+
+        // Helper Functions
+        function setLoading(isLoading) {
+            if (isLoading) {
+                uploadBtn.disabled = true;
+                btnText.innerText = "កំពុងដំណើរការ...";
+                btnLoader.classList.remove('hidden');
+            } else {
+                uploadBtn.disabled = false;
+                btnText.innerText = "Upload ឥឡូវនេះ";
+                btnLoader.classList.add('hidden');
+            }
+        }
+
+        function resetForm() {
+            fileInput.value = "";
+            imagePreview.src = "";
+            imagePreview.classList.add('hidden');
+            uploadPrompt.classList.remove('opacity-0');
+            uploadBtn.disabled = true;
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = message;
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-red-400";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-green-400";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
