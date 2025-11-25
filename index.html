@@ -2,317 +2,1410 @@
 <html lang="km">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudinary Gallery Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IT Shop POS - Modern</title>
     
-    <!-- 1. ប្រើ Tailwind CSS សម្រាប់រចនា -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4f46e5', // Indigo 600
+                        secondary: '#64748b', // Slate 500
+                        success: '#10b981', // Emerald 500
+                        danger: '#ef4444', // Red 500
+                        background: '#f1f5f9', // Slate 100
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Battambang', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     
-    <!-- 2. ប្រើ Font Khmer (Hanuman) -->
-    <link href="https://fonts.googleapis.com/css2?family=Hanuman:wght@300;400;700&display=swap" rel="stylesheet">
-    
-    <!-- 3. ប្រើ Icon (FontAwesome) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Import Map for React, Firebase, and Icons -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/database": "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+      }
+    }
+    </script>
+
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        body { font-family: 'Hanuman', sans-serif; background-color: #f3f4f6; }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+        @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Battambang', sans-serif;
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
         }
-        /* Loading Spinner */
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 3px solid #3b82f6;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
+        
+        /* Smooth scrolling and cleaner scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        ::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        /* Animation classes */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        .slide-up { animation: slideUp 0.3s ease-out; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* Print styles for A5 Receipt */
+        @media print {
+            body * { visibility: hidden; }
+            #printable-area, #printable-area * { visibility: visible; }
+            #printable-area { 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 100%; 
+                height: auto;
+                background: white;
+                color: black;
+            }
+            @page { 
+                size: A5; /* Set paper size to A5 */
+                margin: 0mm; 
+            }
+            /* Hide scrollbars in print */
+            ::-webkit-scrollbar { display: none; }
+        }
     </style>
 </head>
-<body class="text-gray-800">
+<body>
+    <div id="root"></div>
 
-    <!-- Navbar -->
-    <nav class="bg-white shadow-sm sticky top-0 z-50">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
-                <div class="flex items-center gap-2">
-                    <div class="bg-blue-600 text-white p-2 rounded-lg">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                    </div>
-                    <span class="font-bold text-xl text-blue-900">Cloud Gallery</span>
-                </div>
-                <div class="text-sm text-gray-500">
-                    <i class="fa-solid fa-circle text-green-500 text-[10px] mr-1"></i> Online
-                </div>
-            </div>
-        </div>
-    </nav>
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { initializeApp } from 'firebase/app';
+        import { getDatabase, ref, push, set, update, remove, onValue, runTransaction } from 'firebase/database';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+        import { 
+          LayoutDashboard, ShoppingCart, Package, FileText, 
+          Plus, Trash2, Search, Upload, X, Printer, Monitor,
+          Cpu, Save, Image as ImageIcon, LogOut, ChevronRight, 
+          AlertTriangle, ExternalLink, Database, Menu, Wallet, ArrowRight,
+          Tag, Percent, DollarSign, AlignLeft, Settings, Calendar, ToggleLeft, ToggleRight, CheckCircle, CloudOff
+        } from 'lucide-react';
 
-    <!-- Main Content -->
-    <main class="max-w-5xl mx-auto px-4 py-8">
-        
-        <!-- Section 1: Upload Card -->
-        <div class="bg-white rounded-2xl shadow-lg p-6 mb-10 border border-gray-100 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-            
-            <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
-                <i class="fa-regular fa-image text-blue-500"></i> បញ្ចូលរូបភាពថ្មី
-            </h2>
-
-            <div class="grid md:grid-cols-2 gap-8 items-center">
-                
-                <!-- Left: Upload Input Area -->
-                <div class="space-y-4">
-                    <label for="fileInput" class="group flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all duration-300 relative overflow-hidden">
-                        
-                        <!-- Default View -->
-                        <div id="uploadPrompt" class="flex flex-col items-center justify-center pt-5 pb-6">
-                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-gray-300 group-hover:text-blue-500 mb-3 transition-colors"></i>
-                            <p class="mb-2 text-sm text-gray-500"><span class="font-semibold text-blue-600">ចុចទីនេះ</span> ដើម្បីរើសរូបភាព</p>
-                            <p class="text-xs text-gray-400">PNG, JPG or GIF</p>
-                        </div>
-
-                        <!-- Image Preview (Hidden initially) -->
-                        <img id="imagePreview" class="hidden absolute w-full h-full object-cover rounded-xl opacity-90" />
-                        
-                        <input id="fileInput" type="file" class="hidden" accept="image/*" />
-                    </label>
-
-                    <!-- Upload Button -->
-                    <button id="uploadBtn" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform active:scale-95">
-                        <span id="btnText">ចាប់ផ្តើម Upload</span>
-                        <div id="btnLoader" class="loader hidden"></div>
-                    </button>
-                </div>
-
-                <!-- Right: Info or Instruction -->
-                <div class="hidden md:block bg-gray-50 p-6 rounded-xl border border-gray-200">
-                    <h3 class="font-bold text-gray-700 mb-3">របៀបប្រើប្រាស់:</h3>
-                    <ul class="space-y-3 text-sm text-gray-600">
-                        <li class="flex items-start gap-2">
-                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
-                            <span>ជ្រើសរើសរូបភាពដែលអ្នកចង់រក្សាទុក</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
-                            <span>ចុចប៊ូតុង Upload ដើម្បីបញ្ជូនទៅ Cloud</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <i class="fa-solid fa-check text-green-500 mt-1"></i>
-                            <span>រូបភាពនឹងបង្ហាញនៅខាងក្រោមដោយស្វ័យប្រវត្តិ</span>
-                        </li>
-                    </ul>
-                    <div class="mt-4 p-3 bg-blue-50 text-blue-700 text-xs rounded-lg border border-blue-100">
-                        <i class="fa-solid fa-shield-halved mr-1"></i> រូបភាពរបស់អ្នកត្រូវបានរក្សាទុកដោយសុវត្ថិភាព
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Section 2: Gallery -->
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-2xl font-bold text-gray-800">វិចិត្រសាលរូបភាព</h2>
-            <span class="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full" id="countBadge">0 រូប</span>
-        </div>
-
-        <div id="gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <!-- Skeleton Loading (បង្ហាញពេលកំពុងទាញទិន្នន័យ) -->
-            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
-            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
-            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
-            <div class="animate-pulse bg-gray-200 h-48 rounded-xl"></div>
-        </div>
-
-        <!-- Empty State (បង្ហាញពេលអត់មានរូប) -->
-        <div id="emptyState" class="hidden text-center py-20">
-            <div class="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                <i class="fa-regular fa-folder-open text-3xl text-gray-400"></i>
-            </div>
-            <h3 class="text-gray-500 font-bold">មិនទាន់មានរូបភាពនៅឡើយ</h3>
-            <p class="text-gray-400 text-sm">សូមសាកល្បង Upload រូបភាពដំបូងរបស់អ្នក</p>
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="text-center py-8 text-gray-400 text-sm">
-        &copy; 2025 Cloud Gallery System
-    </footer>
-
-    <!-- Toast Notification (សារលោតនៅជ្រុង) -->
-    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
-        <div class="bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3">
-            <i id="toastIcon" class="fa-solid fa-circle-check text-green-400"></i>
-            <span id="toastMsg">Operation Successful</span>
-        </div>
-    </div>
-
-    <!-- Script Logic -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // ==========================================
-        //  កន្លែងបំពេញ KEY របស់អ្នក (សូមកែត្រង់នេះ)
-        // ==========================================
+        /**
+         * CONFIGURATION
+         */
+        const CLOUDINARY_UPLOAD_PRESET = "computer_shop"; 
         const CLOUDINARY_CLOUD_NAME = "dylbvcpoh"; 
-        const CLOUDINARY_UPLOAD_PRESET = "tseting000122"; 
 
-      const firebaseConfig = {
-  apiKey: "AIzaSyDe3ZzoBbQrn4C7PYxHp6J4skZG3auVZlc",
-  authDomain: "testuploadimage-a1ae4.firebaseapp.com",
-  projectId: "testuploadimage-a1ae4",
-  storageBucket: "testuploadimage-a1ae4.firebasestorage.app",
-  messagingSenderId: "16522506084",
-  appId: "1:16522506084:web:597d9c50eeb71606d45471",
-  measurementId: "G-G1XBTSCG48"
-};
-        // ==========================================
+        // Firebase Setup
+        const firebaseConfig = {
+          apiKey: "AIzaSyBVT2rgQ3eJdLaA2zbwZiahor_WogRR5cE",
+          authDomain: "computershop-18afc.firebaseapp.com",
+          databaseURL: "https://computershop-18afc-default-rtdb.firebaseio.com",
+          projectId: "computershop-18afc",
+          storageBucket: "computershop-18afc.firebasestorage.app",
+          messagingSenderId: "862794218096",
+          appId: "1:862794218096:web:4235bf3e82471fe86ad2b5",
+          measurementId: "G-H0RFXBQC96"
+        };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
 
-        // Elements
-        const fileInput = document.getElementById('fileInput');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const uploadPrompt = document.getElementById('uploadPrompt');
-        const imagePreview = document.getElementById('imagePreview');
-        const btnText = document.getElementById('btnText');
-        const btnLoader = document.getElementById('btnLoader');
-        const gallery = document.getElementById('gallery');
-        const countBadge = document.getElementById('countBadge');
-        const emptyState = document.getElementById('emptyState');
+        // --- Helper Functions ---
+        const getDiscountedPrice = (product) => {
+            const price = parseFloat(product.price || 0);
+            const discountValue = parseFloat(product.discountValue || 0);
+            
+            if (!discountValue || discountValue <= 0) return price;
 
-        // 1. Handle File Selection (បង្ហាញរូប Preview)
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
+            if (product.discountType === 'fixed') {
+                return Math.max(0, price - discountValue);
+            } else {
+                return Math.max(0, price - (price * discountValue / 100));
+            }
+        };
+
+        const formatRiel = (amount, rate) => {
+            const exchangeRate = Number(rate) || 4100;
+            return new Intl.NumberFormat('km-KH').format(Math.round(amount * exchangeRate)) + ' ៛';
+        };
+
+        const isPromoActive = (promo, subtotal) => {
+            if (!promo || !promo.isActive) return false;
+            
+            const now = new Date();
+            const start = new Date(promo.startDate);
+            const end = new Date(promo.endDate);
+            
+            start.setHours(0,0,0,0);
+            end.setHours(23,59,59,999);
+
+            const isDateValid = now >= start && now <= end;
+            const isAmountValid = subtotal >= (parseFloat(promo.minSubtotal) || 0);
+
+            return isDateValid && isAmountValid;
+        };
+
+        const calculatePromoDiscount = (promo, subtotal) => {
+            if (!isPromoActive(promo, subtotal)) return 0;
+            
+            const val = parseFloat(promo.value);
+            if (promo.type === 'percent') {
+                return subtotal * (val / 100);
+            } else {
+                return val; // Fixed amount
+            }
+        };
+
+        // Function to resize image for backup storage (Base64)
+        const resizeImage = (file) => {
+            return new Promise((resolve) => {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    imagePreview.src = e.target.result;
-                    imagePreview.classList.remove('hidden');
-                    uploadPrompt.classList.add('opacity-0'); // Hide prompt text
-                    uploadBtn.disabled = false;
-                    uploadBtn.classList.remove('bg-gray-400');
-                    uploadBtn.classList.add('bg-blue-600');
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 600; // Resize to 600px to keep DB size low
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL(file.type, 0.7)); // 70% quality
+                    }
+                    img.src = event.target.result;
                 }
                 reader.readAsDataURL(file);
-            }
-        });
+            });
+        };
 
-        // 2. Handle Upload (ផ្ញើទៅ Cloudinary -> Firebase)
-        uploadBtn.addEventListener('click', async () => {
-            const file = fileInput.files[0];
-            if (!file) return;
+        // --- Components ---
 
-            // Set Loading State
-            setLoading(true);
+        const LoadingSpinner = () => (
+            <div className="flex justify-center items-center h-screen bg-background">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
+                    <p className="text-secondary font-medium animate-pulse">កំពុងដំណើរការ...</p>
+                </div>
+            </div>
+        );
 
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+        const Alert = ({ message, type, onClose }) => {
+            if (!message) return null;
+            const bgClass = type === 'error' ? 'bg-red-50 text-red-600 border-red-200' : (type === 'warning' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200');
+            let icon = <CheckCircle size={18}/>;
+            if (type === 'error') icon = <AlertTriangle size={18}/>;
+            if (type === 'warning') icon = <CloudOff size={18}/>;
+            
+            return (
+                <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-4 rounded-xl border shadow-xl z-[70] flex items-center gap-3 animate-slide-down transition-all duration-300 ${bgClass} min-w-[300px] justify-between`}>
+                    <div className="flex items-center gap-3">
+                        {icon}
+                        <span className="font-medium text-sm">{message}</span>
+                    </div>
+                    <button onClick={onClose} className="p-1 hover:bg-black/5 rounded-full"><X size={16} /></button>
+                </div>
+            );
+        };
 
-            try {
-                // A. Upload to Cloudinary
-                const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-                    method: "POST",
-                    body: formData
-                });
-                
-                const cloudData = await cloudRes.json();
-                
-                if (cloudData.error) throw new Error(cloudData.error.message);
-
-                // B. Save to Firebase
-                await addDoc(collection(db, "images"), {
-                    url: cloudData.secure_url,
-                    name: file.name,
-                    createdAt: serverTimestamp()
-                });
-
-                showToast("Upload ជោគជ័យ!", "success");
-                resetForm();
-
-            } catch (error) {
-                console.error(error);
-                showToast("បរាជ័យ: " + error.message, "error");
-            } finally {
-                setLoading(false);
-            }
-        });
-
-        // 3. Real-time Gallery Display
-        const q = query(collection(db, "images"), orderBy("createdAt", "desc"));
-        
-        onSnapshot(q, (snapshot) => {
-            gallery.innerHTML = ""; // Clear loader
-            countBadge.innerText = snapshot.docs.length + " រូប";
-
-            if (snapshot.empty) {
-                emptyState.classList.remove('hidden');
-                gallery.classList.add('hidden');
-            } else {
-                emptyState.classList.add('hidden');
-                gallery.classList.remove('hidden');
-                
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const card = document.createElement('div');
-                    card.className = "group relative aspect-square bg-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer";
-                    card.innerHTML = `
-                        <img src="${data.url}" class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" loading="lazy">
-                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <a href="${data.url}" target="_blank" class="bg-white text-gray-800 px-4 py-2 rounded-full text-xs font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all">
-                                <i class="fa-solid fa-expand"></i> មើលរូប
-                            </a>
+        const DatabaseErrorScreen = () => (
+            <div className="fixed inset-0 bg-background flex flex-col items-center justify-center p-6 z-50">
+                <div className="bg-white max-w-lg w-full rounded-3xl shadow-2xl overflow-hidden border border-red-100 text-center">
+                    <div className="bg-red-50 p-8 flex flex-col items-center">
+                        <div className="bg-red-100 p-4 rounded-full mb-4">
+                            <Database size={40} className="text-red-600" />
                         </div>
-                    `;
-                    gallery.appendChild(card);
+                        <h2 className="text-2xl font-bold text-gray-800">Database Error</h2>
+                        <p className="text-gray-500 mt-2">Realtime Database មិនទាន់ដំណើរការ</p>
+                    </div>
+                    <div className="p-8">
+                        <p className="text-gray-600 mb-6">សូមចូលទៅកាន់ Firebase Console ដើម្បីបង្កើត Realtime Database (Test Mode)។</p>
+                        <a href="https://console.firebase.google.com/" target="_blank" className="block w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">
+                            Go to Console
+                        </a>
+                        <button onClick={() => window.location.reload()} className="mt-4 text-sm text-gray-500 hover:text-primary underline">
+                            Refresh Page
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- Navigation ---
+        const Sidebar = ({ view, setView }) => {
+            const navItems = [
+                { id: 'pos', label: 'ការលក់ (POS)', icon: <ShoppingCart size={20} /> },
+                { id: 'inventory', label: 'ស្តុកទំនិញ', icon: <Package size={20} /> },
+                { id: 'invoices', label: 'វិក្កយបត្រ', icon: <FileText size={20} /> },
+                { id: 'settings', label: 'ការកំណត់', icon: <Settings size={20} /> }, 
+                { id: 'dashboard', label: 'របាយការណ៍', icon: <LayoutDashboard size={20} /> },
+            ];
+
+            return (
+                <aside className="hidden md:flex w-72 bg-white border-r border-slate-200 flex-col shadow-sm z-20">
+                    <div className="p-8 border-b border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-primary p-2 rounded-lg text-white">
+                                <Monitor size={24} />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">IT SHOP</h1>
+                                <p className="text-xs text-slate-400 font-medium">POS System</p>
+                            </div>
+                        </div>
+                    </div>
+                    <nav className="flex-1 p-4 space-y-2">
+                        {navItems.map(item => (
+                            <button 
+                                key={item.id}
+                                onClick={() => setView(item.id)}
+                                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 font-medium ${
+                                    view === item.id 
+                                    ? 'bg-indigo-50 text-primary shadow-sm' 
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                }`}
+                            >
+                                {item.icon}
+                                {item.label}
+                            </button>
+                        ))}
+                    </nav>
+                    <div className="p-6 border-t border-slate-100">
+                        <div className="bg-slate-50 p-4 rounded-xl">
+                            <p className="text-xs text-slate-400 text-center">Version 3.1.0 (Backup Upload)</p>
+                        </div>
+                    </div>
+                </aside>
+            );
+        };
+
+        const MobileNav = ({ view, setView }) => {
+            const navItems = [
+                { id: 'pos', label: 'លក់', icon: <ShoppingCart size={20} /> },
+                { id: 'inventory', label: 'ស្តុក', icon: <Package size={20} /> },
+                { id: 'invoices', label: 'វិក្កយបត្រ', icon: <FileText size={20} /> },
+                { id: 'settings', label: 'កំណត់', icon: <Settings size={20} /> },
+            ];
+
+            return (
+                <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 pb-safe">
+                    <div className="flex justify-around items-center h-16">
+                        {navItems.map(item => (
+                            <button 
+                                key={item.id}
+                                onClick={() => setView(item.id)}
+                                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
+                                    view === item.id ? 'text-primary' : 'text-slate-400'
+                                }`}
+                            >
+                                <div className={`p-1.5 rounded-full transition-all ${view === item.id ? 'bg-indigo-50 translate-y-[-2px]' : ''}`}>
+                                    {item.icon}
+                                </div>
+                                <span className="text-[10px] font-medium">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const PageHeader = ({ title, action }) => (
+            <div className="flex justify-between items-center mb-6 md:mb-8">
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-800">{title}</h2>
+                {action}
+            </div>
+        );
+
+        const EmptyState = ({ icon, title, description }) => (
+            <div className="flex flex-col items-center justify-center py-12 text-center h-full">
+                <div className="bg-slate-50 p-6 rounded-full mb-4 text-slate-300">
+                    {icon}
+                </div>
+                <h3 className="text-lg font-bold text-slate-600 mb-1">{title}</h3>
+                <p className="text-slate-400 text-sm max-w-xs">{description}</p>
+            </div>
+        );
+
+        // --- Views ---
+
+        // 1. POS View (Updated)
+        const POSView = ({ products, cart, onAdd, onRemove, onUpdateQty, onCheckout, settings }) => {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [categoryFilter, setCategoryFilter] = useState('All');
+            const [showMobileCart, setShowMobileCart] = useState(false);
+
+            const categories = ['All', ...new Set(products.map(p => p.category))];
+            
+            const filteredProducts = products.filter(p => 
+                p.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
+                (categoryFilter === 'All' || p.category === categoryFilter)
+            );
+
+            const subtotal = cart.reduce((sum, item) => {
+                const effectivePrice = getDiscountedPrice(item);
+                return sum + (effectivePrice * item.qty);
+            }, 0);
+            
+            const promoDiscount = calculatePromoDiscount(settings.promotion, subtotal);
+            const grandTotal = Math.max(0, subtotal - promoDiscount);
+            
+            const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+
+            const CartList = () => (
+                <div className="flex-1 overflow-y-auto space-y-3 p-1">
+                    {cart.length === 0 ? (
+                        <EmptyState icon={<ShoppingCart size={48}/>} title="កន្ត្រកទទេ" description="សូមជ្រើសរើសទំនិញដើម្បីចាប់ផ្តើមលក់" />
+                    ) : (
+                        cart.map(item => {
+                            const effectivePrice = getDiscountedPrice(item);
+                            const hasDiscount = item.discountValue > 0;
+
+                            return (
+                                <div key={item.id} className="group flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                                    <div className="h-14 w-14 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0">
+                                        {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-slate-300"><ImageIcon size={20}/></div>}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-bold text-slate-700 line-clamp-1">{item.name}</h4>
+                                        <div className="flex items-baseline gap-2">
+                                            <p className="text-primary font-bold text-sm">${(effectivePrice * item.qty).toFixed(2)}</p>
+                                            {hasDiscount && (
+                                                <p className="text-xs text-slate-400 line-through">${(item.price * item.qty).toFixed(2)}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center bg-slate-50 rounded-lg border border-slate-100">
+                                        <button onClick={() => onUpdateQty(item.id, -1)} className="p-2 text-slate-500 hover:text-danger transition-colors"><ChevronRight className="rotate-180" size={14} /></button>
+                                        <span className="text-sm font-bold w-6 text-center text-slate-700">{item.qty}</span>
+                                        <button onClick={() => onUpdateQty(item.id, 1)} className="p-2 text-slate-500 hover:text-success transition-colors"><ChevronRight size={14} /></button>
+                                    </div>
+                                    <button onClick={() => onRemove(item.id)} className="p-2 text-slate-300 hover:text-danger transition-colors opacity-0 group-hover:opacity-100">
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            );
+
+            const CheckoutSummary = () => (
+                <div className="mt-auto pt-6 border-t border-dashed border-slate-200">
+                    <div className="flex justify-between text-slate-500 mb-2">
+                        <span>សរុប (Subtotal)</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    
+                    {promoDiscount > 0 && (
+                        <div className="flex justify-between text-emerald-600 mb-2 animate-pulse">
+                            <span className="flex items-center gap-1"><Tag size={14}/> {settings.promotion.name}</span>
+                            <span>-${promoDiscount.toFixed(2)}</span>
+                        </div>
+                    )}
+
+                    <div className="space-y-1 mb-6">
+                        <div className="flex justify-between items-end">
+                            <span className="text-lg font-bold text-slate-800">សរុបរួម (USD)</span>
+                            <span className="text-3xl font-extrabold text-primary">${grandTotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-end">
+                            <div className="flex flex-col items-start">
+                                <span className="text-sm font-bold text-slate-500">សរុបរួម (KHR)</span>
+                                <span className="text-[10px] text-slate-400 font-normal">(1$ = {settings.exchangeRate}៛)</span>
+                            </div>
+                            <span className="text-xl font-bold text-slate-600">{formatRiel(grandTotal, settings.exchangeRate)}</span>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => { onCheckout(subtotal, promoDiscount, grandTotal); setShowMobileCart(false); }}
+                        disabled={cart.length === 0}
+                        className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-lg shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <Wallet size={20} />
+                        គិតលុយ (Checkout)
+                    </button>
+                </div>
+            );
+
+            return (
+                <div className="flex h-full relative">
+                    <div className="flex-1 flex flex-col h-full overflow-hidden">
+                        {/* Header */}
+                        <div className="p-4 md:p-8 bg-white/50 backdrop-blur-xl border-b border-slate-200 z-10 sticky top-0">
+                            <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 max-w-7xl mx-auto w-full">
+                                <div className="flex gap-3 w-full md:w-auto">
+                                    <div className="relative flex-1 md:w-64">
+                                        <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                                        <input 
+                                            type="text" 
+                                            placeholder="ស្វែងរកទំនិញ..." 
+                                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <select 
+                                        className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none text-slate-600 font-medium shadow-sm"
+                                        value={categoryFilter}
+                                        onChange={(e) => setCategoryFilter(e.target.value)}
+                                    >
+                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Products Grid */}
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-8">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 max-w-7xl mx-auto">
+                                {filteredProducts.map(product => {
+                                    const effectivePrice = getDiscountedPrice(product);
+                                    const hasDiscount = product.discountValue > 0;
+                                    
+                                    return (
+                                        <div 
+                                            key={product.id} 
+                                            onClick={() => onAdd(product)}
+                                            className="bg-white rounded-2xl p-3 md:p-4 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full relative"
+                                        >
+                                            {hasDiscount && (
+                                                <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md">
+                                                    {product.discountType === 'percent' ? `-${product.discountValue}%` : `-$${product.discountValue}`}
+                                                </div>
+                                            )}
+                                            
+                                            <div className="aspect-[4/3] bg-slate-50 rounded-xl mb-3 overflow-hidden relative">
+                                                {product.image ? (
+                                                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={32} /></div>
+                                                )}
+                                                <div className="absolute top-2 right-2">
+                                                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold shadow-sm backdrop-blur-md ${product.stock > 0 ? 'bg-white/90 text-emerald-600' : 'bg-red-500/90 text-white'}`}>
+                                                        {product.stock > 0 ? `${product.stock} in stock` : 'Out of Stock'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 flex flex-col">
+                                                <h3 className="font-bold text-slate-700 text-sm md:text-base leading-tight mb-1 line-clamp-2">{product.name}</h3>
+                                                <p className="text-xs text-slate-400 mb-2">{product.category}</p>
+                                                <div className="mt-auto flex justify-between items-center">
+                                                    <div className="flex flex-col">
+                                                        {hasDiscount && <span className="text-xs text-slate-400 line-through">${product.price}</span>}
+                                                        <span className="text-lg font-extrabold text-primary">${effectivePrice.toFixed(2)}</span>
+                                                    </div>
+                                                    <button className="bg-slate-50 text-primary p-2 rounded-lg hover:bg-primary hover:text-white transition-colors">
+                                                        <Plus size={18} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="hidden md:flex w-96 bg-white border-l border-slate-200 flex-col h-full shadow-xl z-20">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <ShoppingCart className="text-primary" /> កន្ត្រកទំនិញ
+                            </h3>
+                            <span className="bg-indigo-50 text-primary px-3 py-1 rounded-full text-xs font-bold">{totalItems} items</span>
+                        </div>
+                        <div className="flex-1 p-4 overflow-hidden flex flex-col">
+                            <CartList />
+                        </div>
+                        <div className="p-6 bg-slate-50">
+                            <CheckoutSummary />
+                        </div>
+                    </div>
+
+                    <div className="md:hidden fixed bottom-16 left-4 right-4 z-30">
+                        {totalItems > 0 && (
+                            <button 
+                                onClick={() => setShowMobileCart(true)}
+                                className="w-full bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center animate-slide-up"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-white/20 px-3 py-1 rounded-lg text-sm font-bold">{totalItems}</div>
+                                    <span className="font-medium">មើលកន្ត្រក</span>
+                                </div>
+                                <span className="text-lg font-bold">${grandTotal.toFixed(2)}</span>
+                            </button>
+                        )}
+                    </div>
+
+                    {showMobileCart && (
+                        <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileCart(false)}></div>
+                            <div className="bg-white rounded-t-3xl p-6 h-[85vh] w-full relative flex flex-col shadow-2xl animate-slide-up">
+                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-slate-800">កន្ត្រករបស់អ្នក</h2>
+                                    <button onClick={() => setShowMobileCart(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
+                                </div>
+                                <div className="flex-1 overflow-hidden flex flex-col">
+                                    <CartList />
+                                </div>
+                                <div className="mt-4">
+                                    <CheckoutSummary />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // 2. Settings View
+        const SettingsView = ({ settings, db, showNotification }) => {
+            const [localSettings, setLocalSettings] = useState({ ...settings });
+            const [saving, setSaving] = useState(false);
+
+            useEffect(() => {
+                setLocalSettings({ 
+                    exchangeRate: 4100,
+                    promotion: {
+                        isActive: false,
+                        name: '',
+                        type: 'percent',
+                        value: 0,
+                        minSubtotal: 0,
+                        startDate: '',
+                        endDate: ''
+                    },
+                    ...settings,
+                    promotion: {
+                        isActive: false,
+                        name: '',
+                        type: 'percent',
+                        value: 0,
+                        minSubtotal: 0,
+                        startDate: '',
+                        endDate: '',
+                        ...(settings?.promotion || {}) 
+                    }
                 });
-            }
-        });
+            }, [settings]);
 
-        // Helper Functions
-        function setLoading(isLoading) {
-            if (isLoading) {
-                uploadBtn.disabled = true;
-                btnText.innerText = "កំពុងដំណើរការ...";
-                btnLoader.classList.remove('hidden');
-            } else {
-                uploadBtn.disabled = false;
-                btnText.innerText = "Upload ឥឡូវនេះ";
-                btnLoader.classList.add('hidden');
-            }
-        }
+            const handleChange = (field, value) => {
+                setLocalSettings(prev => ({ ...prev, [field]: value }));
+            };
 
-        function resetForm() {
-            fileInput.value = "";
-            imagePreview.src = "";
-            imagePreview.classList.add('hidden');
-            uploadPrompt.classList.remove('opacity-0');
-            uploadBtn.disabled = true;
-        }
+            const handlePromoChange = (field, value) => {
+                setLocalSettings(prev => ({
+                    ...prev,
+                    promotion: { ...prev.promotion, [field]: value }
+                }));
+            };
 
-        function showToast(message, type) {
-            const toast = document.getElementById('toast');
-            const toastMsg = document.getElementById('toastMsg');
-            const toastIcon = document.getElementById('toastIcon');
+            const handleSave = async () => {
+                setSaving(true);
+                try {
+                    const sanitizedSettings = JSON.parse(JSON.stringify(localSettings));
+                    await set(ref(db, 'settings'), sanitizedSettings);
+                    showNotification('Settings Saved!');
+                } catch (error) {
+                    console.error("Save Error:", error);
+                    showNotification(`Save Failed: ${error.message || error.code}`, 'error');
+                } finally {
+                    setSaving(false);
+                }
+            };
 
-            toastMsg.innerText = message;
-            if (type === 'error') {
-                toastIcon.className = "fa-solid fa-circle-exclamation text-red-400";
-            } else {
-                toastIcon.className = "fa-solid fa-circle-check text-green-400";
-            }
+            return (
+                <div className="p-4 md:p-8 h-full overflow-y-auto max-w-3xl mx-auto w-full pb-24">
+                    <PageHeader title="ការកំណត់ (Settings)" />
 
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
-        }
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
+                        <div className="flex items-center gap-3 mb-4 border-b border-slate-100 pb-4">
+                            <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600"><DollarSign size={20} /></div>
+                            <h3 className="text-lg font-bold text-slate-800">អត្រាប្តូរប្រាក់ (Exchange Rate)</h3>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-slate-500 font-medium">1 USD =</span>
+                            <div className="relative w-48">
+                                <input 
+                                    type="number" 
+                                    value={localSettings.exchangeRate}
+                                    onChange={(e) => handleChange('exchangeRate', parseInt(e.target.value))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-12 focus:ring-2 focus:ring-primary/50 outline-none font-bold text-slate-800"
+                                />
+                                <span className="absolute right-4 top-3 text-slate-400 font-bold">KHR</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-orange-100 p-2 rounded-lg text-orange-600"><Tag size={20} /></div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800">ប្រូម៉ូសិនពិសេស (Special Promotion)</h3>
+                                    <p className="text-xs text-slate-400">កំណត់ការបញ្ចុះតម្លៃសម្រាប់ថ្ងៃពិសេស</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => handlePromoChange('isActive', !localSettings.promotion?.isActive)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold transition-all ${localSettings.promotion?.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                            >
+                                {localSettings.promotion?.isActive ? <ToggleRight size={24}/> : <ToggleLeft size={24}/>}
+                                {localSettings.promotion?.isActive ? 'កំពុងបើក (Active)' : 'បិទ (Disabled)'}
+                            </button>
+                        </div>
+
+                        <div className={`space-y-6 transition-all ${localSettings.promotion?.isActive ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">ឈ្មោះកម្មវិធី (Promotion Name)</label>
+                                <input 
+                                    type="text" 
+                                    value={localSettings.promotion?.name || ''}
+                                    onChange={(e) => handlePromoChange('name', e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 outline-none"
+                                    placeholder="Ex: Khmer New Year Sale"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">លក្ខខណ្ឌ (Min Subtotal)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-3 text-slate-400">$</span>
+                                        <input 
+                                            type="number" 
+                                            value={localSettings.promotion?.minSubtotal || 0}
+                                            onChange={(e) => handlePromoChange('minSubtotal', parseFloat(e.target.value))}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-8 focus:ring-2 focus:ring-primary/50 outline-none"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">តម្លៃទិញសរុបចាប់ពីចំនួននេះឡើងទៅ</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">តម្លៃបញ្ចុះ (Discount Value)</label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <input 
+                                                type="number" 
+                                                value={localSettings.promotion?.value || 0}
+                                                onChange={(e) => handlePromoChange('value', parseFloat(e.target.value))}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pr-8 focus:ring-2 focus:ring-primary/50 outline-none"
+                                            />
+                                            <span className="absolute right-3 top-3 text-slate-400">
+                                                {localSettings.promotion?.type === 'percent' ? '%' : '$'}
+                                            </span>
+                                        </div>
+                                        <div className="flex bg-slate-100 rounded-xl p-1">
+                                            <button 
+                                                onClick={() => handlePromoChange('type', 'percent')}
+                                                className={`px-3 py-2 rounded-lg text-sm font-bold transition ${localSettings.promotion?.type === 'percent' ? 'bg-white shadow text-primary' : 'text-slate-500'}`}
+                                            >
+                                                %
+                                            </button>
+                                            <button 
+                                                onClick={() => handlePromoChange('type', 'fixed')}
+                                                className={`px-3 py-2 rounded-lg text-sm font-bold transition ${localSettings.promotion?.type === 'fixed' ? 'bg-white shadow text-primary' : 'text-slate-500'}`}
+                                            >
+                                                $
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">ចាប់ពីថ្ងៃ (Start Date)</label>
+                                    <input 
+                                        type="date" 
+                                        value={localSettings.promotion?.startDate || ''}
+                                        onChange={(e) => handlePromoChange('startDate', e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">ដល់ថ្ងៃ (End Date)</label>
+                                    <input 
+                                        type="date" 
+                                        value={localSettings.promotion?.endDate || ''}
+                                        onChange={(e) => handlePromoChange('endDate', e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 outline-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="fixed bottom-20 md:bottom-8 right-4 md:right-8 left-4 md:left-auto max-w-3xl mx-auto">
+                        <button 
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="w-full md:w-auto bg-primary text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                        >
+                            <Save size={20} />
+                            {saving ? 'Saving...' : 'រក្សាទុក (Save Settings)'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Inventory View (Keep existing)
+        const InventoryView = ({ products, db, showNotification }) => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingProd, setEditingProd] = useState(null);
+
+            const handleDelete = async (id) => {
+                if (window.confirm('លុប?')) {
+                    await remove(ref(db, `products/${id}`));
+                    showNotification('Deleted');
+                }
+            };
+
+            return (
+                <div className="p-4 md:p-8 h-full overflow-hidden flex flex-col max-w-7xl mx-auto w-full">
+                    <PageHeader 
+                        title="ស្តុកទំនិញ" 
+                        action={
+                            <button 
+                                onClick={() => { setEditingProd(null); setIsModalOpen(true); }}
+                                className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                            >
+                                <Plus size={20} /> <span className="hidden sm:inline">ទំនិញថ្មី</span>
+                            </button>
+                        }
+                    />
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 overflow-hidden flex flex-col">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                                    <tr>
+                                        <th className="p-4">រូបភាព</th>
+                                        <th className="p-4">ឈ្មោះទំនិញ</th>
+                                        <th className="p-4 hidden md:table-cell">ប្រភេទ</th>
+                                        <th className="p-4">តម្លៃ</th>
+                                        <th className="p-4 text-center">ស្តុក</th>
+                                        <th className="p-4 text-center">បញ្ចុះតម្លៃ</th>
+                                        <th className="p-4 text-right">...</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {products.map(p => (
+                                        <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4">
+                                                <div className="h-12 w-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                                                    {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : null}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 font-medium text-slate-700">
+                                                <div className="flex flex-col">
+                                                    <span>{p.name}</span>
+                                                    {p.description && <span className="text-xs text-slate-400 line-clamp-1">{p.description}</span>}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 hidden md:table-cell text-slate-500">{p.category}</td>
+                                            <td className="p-4 text-primary font-bold">${p.price}</td>
+                                            <td className="p-4 text-center">
+                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                    {p.stock}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-center text-sm text-slate-500">
+                                                {p.discountValue > 0 ? (
+                                                    <span className="bg-red-50 text-red-600 px-2 py-1 rounded-lg text-xs font-bold">
+                                                        {p.discountType === 'percent' ? `-${p.discountValue}%` : `-$${p.discountValue}`}
+                                                    </span>
+                                                ) : '-'}
+                                            </td>
+                                            <td className="p-4 text-right whitespace-nowrap">
+                                                <button onClick={() => { setEditingProd(p); setIsModalOpen(true); }} className="text-primary hover:bg-indigo-50 p-2 rounded-lg mr-1 transition-colors">Edit</button>
+                                                <button onClick={() => handleDelete(p.id)} className="text-red-400 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 size={18}/></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {isModalOpen && (
+                        <ProductFormModal 
+                            product={editingProd} 
+                            onClose={() => setIsModalOpen(false)} 
+                            db={db}
+                            showNotification={showNotification}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // Product Form Modal (Improved Error Handling - Updated with Timeout + Fallback)
+        const ProductFormModal = ({ product, onClose, db, showNotification }) => {
+            const [formData, setFormData] = useState({
+                name: product?.name || '',
+                category: product?.category || 'Accessories',
+                price: product?.price || '',
+                stock: product?.stock || '',
+                image: product?.image || '',
+                description: product?.description || '',
+                discountValue: product?.discountValue || '',
+                discountType: product?.discountType || 'percent'
+            });
+            const [uploading, setUploading] = useState(false);
+
+            const handleChange = (e) => {
+                setFormData({ ...formData, [e.target.name]: e.target.value });
+            };
+
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (file.size > 10 * 1024 * 1024) {
+                    showNotification('File too large (>10MB)', 'error');
+                    e.target.value = null;
+                    return;
+                }
+
+                setUploading(true);
+                const data = new FormData();
+                data.append("file", file);
+                data.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+                
+                try {
+                    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, { 
+                        method: "POST", 
+                        body: data
+                    });
+                    
+                    if (!res.ok) {
+                        throw new Error("Cloud upload failed");
+                    }
+
+                    const fileData = await res.json();
+                    if (fileData.secure_url) {
+                        setFormData(prev => ({ ...prev, image: fileData.secure_url }));
+                        showNotification('Upload ជោគជ័យ!', 'success');
+                    }
+                } catch (err) {
+                    console.warn("Cloudinary upload failed, switching to backup storage (Base64)...");
+                    try {
+                        // Fallback: Resize locally and save as Base64 string
+                        const base64Image = await resizeImage(file);
+                        setFormData(prev => ({ ...prev, image: base64Image }));
+                        showNotification('Upload បានសម្រេច (Offline Mode)', 'warning');
+                    } catch (fallbackErr) {
+                        showNotification('Upload បរាជ័យទាំងស្រុង', 'error');
+                    }
+                } finally {
+                    setUploading(false);
+                    e.target.value = null; 
+                }
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setUploading(true);
+                const payload = { 
+                    ...formData, 
+                    price: parseFloat(formData.price), 
+                    stock: parseInt(formData.stock),
+                    discountValue: parseFloat(formData.discountValue || 0),
+                    discountType: formData.discountType
+                };
+                try {
+                    if (product) await update(ref(db, `products/${product.id}`), payload);
+                    else await push(ref(db, 'products'), payload);
+                    showNotification('Success');
+                    onClose();
+                } catch (err) { showNotification('Error', 'error'); } finally { setUploading(false); }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b flex justify-between items-center bg-slate-50 sticky top-0 z-10">
+                            <h3 className="font-bold text-xl text-slate-800">{product ? 'កែប្រែទំនិញ' : 'បញ្ចូលទំនិញថ្មី'}</h3>
+                            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-8 space-y-5">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">ឈ្មោះទំនិញ (Name)</label>
+                                <input name="name" required value={formData.name} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 outline-none transition" placeholder="Ex: Gaming Mouse" />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">ប្រភេទ (Category)</label>
+                                <select name="category" value={formData.category} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 outline-none transition">
+                                    <option value="Laptops">Laptops</option>
+                                    <option value="Desktops">Desktops</option>
+                                    <option value="Accessories">Accessories</option>
+                                    <option value="Monitors">Monitors</option>
+                                    <option value="Parts">Parts</option>
+                                </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">តម្លៃ ($) (Price)</label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-3 text-slate-400"><DollarSign size={16}/></div>
+                                        <input name="price" type="number" required value={formData.price} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-9" placeholder="0.00" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">ស្តុក (Stock)</label>
+                                    <div className="relative">
+                                         <div className="absolute left-3 top-3 text-slate-400"><Package size={16}/></div>
+                                        <input name="stock" type="number" required value={formData.stock} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-9" placeholder="0" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Discount Section */}
+                            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">ការបញ្ចុះតម្លៃ (Discount)</label>
+                                <div className="flex gap-2">
+                                    <div className="flex-1 relative">
+                                        <input 
+                                            name="discountValue" 
+                                            type="number" 
+                                            value={formData.discountValue} 
+                                            onChange={handleChange} 
+                                            className="w-full bg-white border border-slate-200 rounded-xl p-3 pr-10 focus:ring-2 focus:ring-primary/50 outline-none" 
+                                            placeholder="0" 
+                                        />
+                                        <div className="absolute right-3 top-3 text-slate-400">
+                                            {formData.discountType === 'percent' ? <Percent size={16}/> : <DollarSign size={16}/>}
+                                        </div>
+                                    </div>
+                                    <div className="flex bg-white rounded-xl border border-slate-200 p-1">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setFormData({...formData, discountType: 'percent'})}
+                                            className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${formData.discountType === 'percent' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                                        >
+                                            %
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setFormData({...formData, discountType: 'fixed'})}
+                                            className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${formData.discountType === 'fixed' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                                        >
+                                            $
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Description Section */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">បរិយាយពីផលិតផល (Description)</label>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-3 text-slate-400"><AlignLeft size={16}/></div>
+                                    <textarea 
+                                        name="description" 
+                                        rows="3" 
+                                        value={formData.description} 
+                                        onChange={handleChange} 
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-9 focus:ring-2 focus:ring-primary/50 outline-none transition resize-none" 
+                                        placeholder="សរសេរលម្អិតអំពីផលិតផល..." 
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">រូបភាព (Image)</label>
+                                <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-50 transition bg-slate-50 overflow-hidden relative group">
+                                    {formData.image ? (
+                                        <>
+                                            <img src={formData.image} className="absolute inset-0 w-full h-full object-cover group-hover:opacity-75 transition" />
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                                <span className="bg-black/50 text-white px-2 py-1 rounded text-xs">Change</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="text-center text-slate-400 flex flex-col items-center">
+                                            <Upload size={20} className="mb-1"/>
+                                            <span className="text-xs">Click to Upload</span>
+                                        </div>
+                                    )}
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                </label>
+                                {uploading && <p className="text-xs text-primary mt-2 text-center animate-pulse">Uploading...</p>}
+                            </div>
+
+                            <button disabled={uploading} type="submit" className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all mt-2">
+                                {uploading ? 'Wait...' : 'រក្សាទុក (Save)'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const InvoicesView = ({ invoices, onView }) => {
+            return (
+                <div className="p-4 md:p-8 h-full flex flex-col max-w-7xl mx-auto w-full">
+                    <PageHeader title="ប្រវត្តិវិក្កយបត្រ" />
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 overflow-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
+                                <tr>
+                                    <th className="p-4 pl-6">ID</th>
+                                    <th className="p-4">Date</th>
+                                    <th className="p-4">Total</th>
+                                    <th className="p-4 text-right pr-6">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {invoices.map(inv => (
+                                    <tr key={inv.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => onView(inv)}>
+                                        <td className="p-4 pl-6 font-mono text-slate-500">#{inv.id.slice(1, 7)}...</td>
+                                        <td className="p-4 text-sm text-slate-600">{inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="p-4 font-bold text-emerald-600">${inv.total.toFixed(2)}</td>
+                                        <td className="p-4 text-right pr-6">
+                                            <span className="text-primary text-sm font-medium hover:underline">View</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const DashboardView = ({ invoices, products }) => {
+            const totalSales = invoices.reduce((sum, inv) => sum + inv.total, 0);
+            
+            const StatCard = ({ title, value, icon, color }) => (
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className={`p-4 rounded-xl ${color} text-white shadow-lg`}>{icon}</div>
+                    <div>
+                        <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
+                        <h3 className="text-2xl font-extrabold text-slate-800">{value}</h3>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="p-4 md:p-8 h-full overflow-y-auto max-w-7xl mx-auto w-full pb-24 md:pb-8">
+                    <PageHeader title="ផ្ទាំងគ្រប់គ្រង" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <StatCard title="ការលក់សរុប" value={`$${totalSales.toFixed(2)}`} icon={<Wallet size={24}/>} color="bg-gradient-to-br from-indigo-500 to-purple-600" />
+                        <StatCard title="វិក្កយបត្រ" value={invoices.length} icon={<FileText size={24}/>} color="bg-gradient-to-br from-orange-400 to-pink-500" />
+                        <StatCard title="ផលិតផល" value={products.length} icon={<Package size={24}/>} color="bg-gradient-to-br from-emerald-400 to-teal-500" />
+                    </div>
+                    
+                    <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="font-bold text-lg text-slate-800 mb-6">Recent Activity</h3>
+                        {invoices.length > 0 ? (
+                            <div className="space-y-4">
+                                {invoices.slice(0, 5).map(inv => (
+                                    <div key={inv.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-white p-2 rounded-lg text-primary shadow-sm"><ShoppingCart size={20}/></div>
+                                            <div>
+                                                <p className="font-bold text-sm text-slate-700">New Sale</p>
+                                                <p className="text-xs text-slate-400">{new Date(inv.createdAt).toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-emerald-600">+${inv.total.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : <EmptyState icon={<LayoutDashboard size={40}/>} title="No Data" description="Start selling to see data here." />}
+                    </div>
+                </div>
+            );
+        };
+
+        // 6. Invoice Modal (A5 Receipt Design) - Updated to show Exchange Rate and KHR
+        const InvoiceModal = ({ invoice, onClose }) => {
+            const handlePrint = () => {
+                const printContent = document.getElementById('printable-area').innerHTML;
+                const printContainer = document.createElement('div');
+                printContainer.innerHTML = printContent;
+                printContainer.style.position = 'fixed';
+                printContainer.style.left = '0';
+                printContainer.style.top = '0';
+                printContainer.style.width = '100%';
+                printContainer.style.height = '100%';
+                printContainer.style.zIndex = '9999';
+                printContainer.style.background = 'white';
+                document.body.appendChild(printContainer);
+                const root = document.getElementById('root');
+                root.style.display = 'none';
+                window.print();
+                document.body.removeChild(printContainer);
+                root.style.display = 'block';
+            };
+
+            const rate = invoice.exchangeRate || 4100;
+            
+            // Safe extraction for legacy data support
+            const subtotal = invoice.subtotal ?? invoice.total ?? 0;
+            const discount = invoice.discount ?? 0;
+            const total = invoice.total ?? 0;
+
+            return (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+                            <h3 className="font-bold">Receipt Preview (A5)</h3>
+                            <div className="flex gap-2">
+                                <button onClick={handlePrint} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg"><Printer size={18} /></button>
+                                <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg"><X size={18} /></button>
+                            </div>
+                        </div>
+                        
+                        <div className="overflow-y-auto bg-gray-100 p-4 flex justify-center">
+                            <div id="printable-area" className="bg-white p-8 w-full text-slate-900" style={{ maxWidth: '148mm', minHeight: '210mm', fontFamily: "'Inter', sans-serif" }}>
+                                <div className="text-center mb-6">
+                                    <div className="mb-2">
+                                        <h1 className="text-3xl font-black uppercase tracking-widest text-indigo-700">IT SHOP</h1>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Computer Solutions</p>
+                                    <p className="text-xs text-slate-500">Phnom Penh, Cambodia</p>
+                                    <p className="text-xs text-slate-500 font-mono">Tel: 012 345 678</p>
+                                </div>
+
+                                <div className="flex justify-between items-end border-b-2 border-slate-100 pb-4 mb-4 text-xs">
+                                    <div>
+                                        <p className="text-slate-400 mb-1">BILLED TO</p>
+                                        <p className="font-bold text-slate-800">General Customer</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="mb-1"><span className="text-slate-400">INV:</span> <span className="font-mono font-bold">#{invoice.id.slice(1,9).toUpperCase()}</span></p>
+                                        <p><span className="text-slate-400">DATE:</span> <span className="font-mono">{new Date(invoice.createdAt).toLocaleDateString()}</span></p>
+                                        <p className="text-[10px] text-slate-400">Rate: 1$ = {rate}៛</p>
+                                    </div>
+                                </div>
+
+                                <table className="w-full text-xs mb-6">
+                                    <thead>
+                                        <tr className="text-slate-400 border-b border-slate-100">
+                                            <th className="text-left py-2 font-medium w-5/12">ITEM</th>
+                                            <th className="text-center py-2 font-medium w-2/12">QTY</th>
+                                            <th className="text-right py-2 font-medium w-2/12">PRICE</th>
+                                            <th className="text-right py-2 font-medium w-3/12">TOTAL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="font-mono text-slate-700">
+                                        {invoice.items.map((item, idx) => {
+                                            const effectivePrice = getDiscountedPrice(item);
+                                            return (
+                                                <tr key={idx} className="border-b border-dashed border-slate-100 last:border-0">
+                                                    <td className="py-3 pr-2">
+                                                        <p className="font-bold truncate">{item.name}</p>
+                                                        {item.discountValue > 0 && <span className="text-[10px] text-red-500">Disc: -{item.discountType === 'percent' ? item.discountValue + '%' : '$' + item.discountValue}</span>}
+                                                    </td>
+                                                    <td className="py-3 text-center">x{item.qty}</td>
+                                                    <td className="py-3 text-right">${effectivePrice.toFixed(2)}</td>
+                                                    <td className="py-3 text-right font-bold">${(effectivePrice * item.qty).toFixed(2)}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+
+                                <div className="flex justify-end mb-8">
+                                    <div className="w-2/3 space-y-2 text-right">
+                                        <div className="flex justify-between text-xs text-slate-500">
+                                            <span>Subtotal</span>
+                                            <span className="font-mono">${Number(subtotal).toFixed(2)}</span>
+                                        </div>
+                                        {discount > 0 && (
+                                            <div className="flex justify-between text-xs text-red-500">
+                                                <span>Promo Discount</span>
+                                                <span className="font-mono">-${Number(discount).toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between text-sm font-bold text-slate-800 pt-2 border-t border-slate-800 mt-2">
+                                            <span>TOTAL (USD)</span>
+                                            <span className="font-mono text-lg">${Number(total).toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm font-bold text-slate-500">
+                                            <span>TOTAL (KHR)</span>
+                                            <span className="font-mono text-lg">{formatRiel(total, rate)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="text-center text-[10px] text-slate-400 mt-auto pt-8 border-t border-slate-100">
+                                    <p className="mb-1">Goods sold are not returnable.</p>
+                                    <p className="font-medium text-slate-500">THANK YOU FOR SHOPPING WITH US!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('pos');
+            const [products, setProducts] = useState([]);
+            const [cart, setCart] = useState([]);
+            const [invoices, setInvoices] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [notification, setNotification] = useState({ message: '', type: '' });
+            const [showInvoiceModal, setShowInvoiceModal] = useState(null);
+            const [dbError, setDbError] = useState(false);
+            
+            // Global Settings State
+            const [settings, setSettings] = useState({
+                exchangeRate: 4100,
+                promotion: {
+                    isActive: false,
+                    name: '',
+                    type: 'percent',
+                    value: 0,
+                    minSubtotal: 0,
+                    startDate: '',
+                    endDate: ''
+                }
+            });
+
+            useEffect(() => {
+                signInAnonymously(auth).catch(() => setNotification({ message: 'Auth Error', type: 'error' }));
+                onAuthStateChanged(auth, u => { setUser(u); if(!u) setLoading(false); });
+            }, []);
+
+            useEffect(() => {
+                if (!user) return;
+                
+                // Fetch Products
+                const unsubProd = onValue(ref(db, 'products'), s => {
+                    const data = s.val();
+                    setProducts(data ? Object.entries(data).map(([id, v]) => ({ id, ...v })) : []);
+                    setLoading(false); setDbError(false);
+                }, err => { setLoading(false); if(err.code === 'PERMISSION_DENIED') setDbError(true); });
+
+                // Fetch Invoices
+                const unsubInv = onValue(ref(db, 'invoices'), s => {
+                    const data = s.val();
+                    setInvoices(data ? Object.entries(data).map(([id, v]) => ({ id, ...v })).sort((a,b) => b.createdAt - a.createdAt) : []);
+                });
+
+                // Fetch Settings with correct merging
+                const unsubSettings = onValue(ref(db, 'settings'), s => {
+                    const data = s.val();
+                    if (data) {
+                        setSettings(prev => ({
+                            ...prev,
+                            ...data,
+                            promotion: {
+                                ...prev.promotion,
+                                ...(data.promotion || {})
+                            }
+                        }));
+                    }
+                });
+
+                return () => { unsubProd(); unsubInv(); unsubSettings(); };
+            }, [user]);
+
+            const showNotification = (msg, type = 'success') => {
+                setNotification({ message: msg, type });
+                setTimeout(() => setNotification({ message: '', type: '' }), 3000);
+            };
+
+            const addToCart = (p) => {
+                if (p.stock <= 0) return showNotification('Out of Stock', 'error');
+                setCart(prev => {
+                    const ex = prev.find(i => i.id === p.id);
+                    if (ex && ex.qty >= p.stock) { showNotification('Limit Reached', 'error'); return prev; }
+                    return ex ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
+                });
+            };
+
+            const updateCartQty = (id, change) => {
+                setCart(prev => prev.map(i => {
+                    if (i.id !== id) return i;
+                    const p = products.find(prod => prod.id === id);
+                    if (change > 0 && i.qty >= p.stock) { showNotification('Stock Limit', 'error'); return i; }
+                    const newQty = i.qty + change;
+                    return newQty > 0 ? { ...i, qty: newQty } : i;
+                }));
+            };
+
+            const handleCheckout = async (subtotal, discount, grandTotal) => {
+                try {
+                    const invData = { 
+                        items: cart, 
+                        subtotal: subtotal,
+                        discount: discount,
+                        total: grandTotal, 
+                        exchangeRate: settings.exchangeRate,
+                        createdAt: Date.now(), 
+                        cashier: 'Staff' 
+                    };
+                    const newRef = await push(ref(db, 'invoices'), invData);
+                    for (const item of cart) {
+                        await runTransaction(ref(db, `products/${item.id}/stock`), (curr) => (curr || 0) - item.qty);
+                    }
+                    setCart([]);
+                    setShowInvoiceModal({ id: newRef.key, ...invData });
+                    showNotification('Success');
+                } catch (e) { showNotification('Error', 'error'); }
+            };
+
+            if (loading) return <LoadingSpinner />;
+            if (dbError) return <DatabaseErrorScreen />;
+
+            return (
+                <div className="flex h-screen w-full bg-background font-sans text-slate-800 overflow-hidden">
+                    <Alert message={notification.message} type={notification.type} onClose={() => setNotification({ m: '', t: '' })} />
+                    
+                    <Sidebar view={view} setView={setView} />
+                    
+                    <main className="flex-1 h-full relative w-full">
+                        {view === 'pos' && <POSView products={products} cart={cart} onAdd={addToCart} onRemove={id => setCart(p => p.filter(i => i.id !== id))} onUpdateQty={updateCartQty} onCheckout={handleCheckout} settings={settings} />}
+                        {view === 'inventory' && <InventoryView products={products} db={db} showNotification={showNotification} />}
+                        {view === 'invoices' && <InvoicesView invoices={invoices} onView={setShowInvoiceModal} />}
+                        {view === 'settings' && <SettingsView settings={settings} db={db} showNotification={showNotification} />}
+                        {view === 'dashboard' && <DashboardView invoices={invoices} products={products} />}
+                    </main>
+
+                    <MobileNav view={view} setView={setView} />
+                    
+                    {showInvoiceModal && <InvoiceModal invoice={showInvoiceModal} onClose={() => setShowInvoiceModal(null)} />}
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
